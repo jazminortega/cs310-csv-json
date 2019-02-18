@@ -5,6 +5,7 @@ import java.util.*;
 import com.opencsv.*;
 import org.json.simple.*;
 import org.json.simple.parser.*;
+import java.sql.*;
 
 public class Converter {
     
@@ -174,4 +175,152 @@ public class Converter {
         
     }
 
+    public static JSONArray getJSONData()throws ClassNotFoundException, InstantiationException {
+        
+        JSONArray results = null;
+        Connection conn = null;
+        PreparedStatement pstSelect = null, pstUpdate = null;
+        ResultSet resultset = null;
+        ResultSetMetaData metadata = null;
+        
+        String query, key, value;
+        String[] headers;
+        
+        JSONArray records = new JSONArray();
+        
+        boolean hasresults;
+        int resultCount, columnCount, updateCount = 0;
+        
+        try {
+            
+            /* Identify the Server */
+            
+            String server = ("jdbc:mysql://localhost/p2_test");
+            String username = "root";
+            String password = "CS310";
+            System.out.println("Connecting to " + server + "...");
+            
+            /* Load the MySQL JDBC Driver */
+            
+            Class.forName("com.mysql.jdbc.Driver").newInstance();
+            
+            /* Open Connection */
+
+            conn = DriverManager.getConnection(server, username, password);
+
+            /* Test Connection */
+            
+            if (conn.isValid(0)) {
+                
+                /* Prepare Select Query */
+                
+                query = "SELECT * FROM people";
+                pstSelect = conn.prepareStatement(query);
+                
+                /* Execute Select Query */
+           
+                hasresults = pstSelect.execute();                
+                
+                /* Get Results */
+                
+                while ( hasresults || pstSelect.getUpdateCount() != -1 ) {
+
+                    if ( hasresults ) {
+                        
+                        /* Get ResultSet Metadata */
+                        
+                        resultset = pstSelect.getResultSet();
+                        metadata = resultset.getMetaData();
+                        columnCount = metadata.getColumnCount();
+                        
+                        headers = new String[columnCount - 1];
+  
+
+                        for (int i = 0; i < headers.length; i++) {
+
+                            headers[i] = metadata.getColumnLabel(i + 2);
+
+                        }         
+                        
+                        /* Get Data; Print as Table Rows */
+                       
+                        LinkedHashMap data = new LinkedHashMap();
+                       
+                        while(resultset.next()) {
+                            
+                        
+                            
+                        /* Loop Through ResultSet Columns; Print Values */
+
+
+                        data = new LinkedHashMap();
+
+                            
+
+                        for (int i = 0; i < headers.length; i++) {
+
+                            value = resultset.getString(i + 2);
+                            
+                            if (resultset.wasNull()) {
+                                 
+                                data.put(headers[i], "");
+                            }
+                            else {
+
+                                data.put(headers[i], value);
+
+                            }
+                        }    
+                        
+                        records.add(data);
+                        
+                        }
+                    }    
+                    else {
+
+                        resultCount = pstSelect.getUpdateCount();  
+
+                        if ( resultCount == -1 ) {
+                            break;
+                        }
+
+                    }
+                    
+                    /* Check for More Data */
+
+                    hasresults = pstSelect.getMoreResults();
+
+                }
+                
+                results = records;
+                
+            }
+            
+            System.out.println();
+            
+            /* Close Database Connection */
+            
+            conn.close();
+            
+        }
+        
+        catch (Exception e) {
+            System.err.println(e.toString());
+        }
+        
+        /* Close Other Database Objects */
+        
+        finally {
+            
+            if (resultset != null) { try { resultset.close(); resultset = null; } catch (Exception e) {} }
+            
+            if (pstSelect != null) { try { pstSelect.close(); pstSelect = null; } catch (Exception e) {} }
+            
+            if (pstUpdate != null) { try { pstUpdate.close(); pstUpdate = null; } catch (Exception e) {} }
+            
+        }
+        
+        return results;
+    }
+    
 }
